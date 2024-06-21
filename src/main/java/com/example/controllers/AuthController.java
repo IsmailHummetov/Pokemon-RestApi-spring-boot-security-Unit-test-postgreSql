@@ -1,11 +1,13 @@
 package com.example.controllers;
 
+import com.example.dto.AuthResponseDto;
 import com.example.dto.LoginDto;
 import com.example.dto.RegisterDto;
 import com.example.models.Role;
 import com.example.models.UserEntity;
 import com.example.repository.RoleRepository;
 import com.example.repository.UserRepository;
+import com.example.security.JWTGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,22 +26,25 @@ import java.util.Collections;
 @RestController
 @RequestMapping("/api/auth/")
 public class AuthController {
+    private AuthenticationManager authenticationManager;
     private UserRepository userRepository;
     private RoleRepository roleRepository;
     private PasswordEncoder passwordEncoder;
-    private AuthenticationManager authenticationManager;
+    private JWTGenerator jwtGenerator;
 
     @Autowired
-    public AuthController(UserRepository userRepository, RoleRepository roleRepository,
-                          PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager) {
+    public AuthController(AuthenticationManager authenticationManager, UserRepository userRepository,
+                          RoleRepository roleRepository, PasswordEncoder passwordEncoder, JWTGenerator jwtGenerator) {
+        this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
-        this.authenticationManager = authenticationManager;
+        this.jwtGenerator = jwtGenerator;
     }
+
     @PostMapping("register")
-    public ResponseEntity<String> register(@RequestBody RegisterDto registerDto){
-        if(userRepository.existsByUsername(registerDto.getUsername())){
+    public ResponseEntity<String> register(@RequestBody RegisterDto registerDto) {
+        if (userRepository.existsByUsername(registerDto.getUsername())) {
             return new ResponseEntity<>("Username is already used", HttpStatus.OK);
         }
         UserEntity user = new UserEntity();
@@ -48,15 +53,17 @@ public class AuthController {
         Role role = roleRepository.findByName("USER").get();
         user.setRoles(Collections.singletonList(role));
         userRepository.save(user);
-        return new ResponseEntity<>("User registered successfully",HttpStatus.OK);
+        return new ResponseEntity<>("User registered successfully", HttpStatus.OK);
     }
 
     @PostMapping("login")
-    public ResponseEntity<String> login(@RequestBody LoginDto loginDto){
+    public ResponseEntity<AuthResponseDto> login(@RequestBody LoginDto loginDto) {
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginDto.getUsername(),
+                new UsernamePasswordAuthenticationToken(
+                        loginDto.getUsername(),
                         loginDto.getPassword()));
         SecurityContextHolder.getContext().setAuthentication(authentication);
-        return new ResponseEntity<>("User logged in successfully",HttpStatus.OK);
+        String token = jwtGenerator.generateToken(authentication);
+        return new ResponseEntity<>(new AuthResponseDto(token), HttpStatus.OK);
     }
 }
