@@ -1,5 +1,6 @@
 package com.example.security;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,6 +21,7 @@ public class SecurityConfig {
 
     private JwtAuthEntryPoint authEntryPoint;
     private CustomUserDetailsService userDetailsService;
+
     @Autowired
     public SecurityConfig(CustomUserDetailsService userDetailsService, JwtAuthEntryPoint authEntryPoint) {
         this.userDetailsService = userDetailsService;
@@ -30,16 +32,17 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-                .exceptionHandling(ex->ex.authenticationEntryPoint(authEntryPoint))
-                .sessionManagement(session->session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(authEntryPoint))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> {
                     auth
                             .requestMatchers("/api/auth/**").permitAll()
+                            .requestMatchers("/login").permitAll()
                             .anyRequest().authenticated();
                 })
                 .httpBasic(Customizer.withDefaults())
-                .formLogin(Customizer.withDefaults());
-        http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+                .formLogin(Customizer.withDefaults())
+                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
@@ -55,7 +58,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public  JWTAuthenticationFilter jwtAuthenticationFilter() {
+    public JWTAuthenticationFilter jwtAuthenticationFilter() {
         return new JWTAuthenticationFilter();
     }
 }
